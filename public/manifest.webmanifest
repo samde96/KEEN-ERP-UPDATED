@@ -1,0 +1,18 @@
+{
+  "name": "Keen Inventory and POS",
+  "short_name": "Keen POS",
+  "description": "Inventory, warehouse, shop, and point-of-sale operations.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/Keen_Logo.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

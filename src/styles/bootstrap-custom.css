@@ -1,0 +1,154 @@
+:root {
+  --bs-body-font-family: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bs-body-bg: #f7f8fb;
+  --bs-body-color: #0b0b0f;
+  --bs-primary: #2b6afd;
+  --bs-primary-rgb: 43, 106, 253;
+  --bs-success: #2b6afd;
+  --bs-success-rgb: 43, 106, 253;
+  --bs-danger: #050505;
+  --bs-danger-rgb: 5, 5, 5;
+  --bs-warning: #050505;
+  --bs-warning-rgb: 5, 5, 5;
+  --bs-info: #2b6afd;
+  --bs-info-rgb: 43, 106, 253;
+  --app-blue: #2b6afd;
+  --app-black: #050505;
+  --app-white: #ffffff;
+  --app-bg: #f7f8fb;
+  --app-subtle: #f1f3f8;
+  --app-border: #d8dce5;
+  --app-panel: #ffffff;
+  --app-sidebar: #ffffff;
+  --app-muted: #5f6675;
+  --app-shadow: 0 1px 2px rgba(5, 5, 5, 0.06);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 8px;
+  font-weight: 650;
+}
+
+.btn-primary {
+  --bs-btn-bg: #2b6afd;
+  --bs-btn-border-color: #2b6afd;
+  --bs-btn-hover-bg: #1657ef;
+  --bs-btn-hover-border-color: #1657ef;
+  --bs-btn-active-bg: #0f49d5;
+  --bs-btn-active-border-color: #0f49d5;
+}
+
+.btn-success {
+  --bs-btn-bg: #2b6afd;
+  --bs-btn-border-color: #2b6afd;
+  --bs-btn-hover-bg: #1657ef;
+  --bs-btn-hover-border-color: #1657ef;
+}
+
+.btn-danger {
+  --bs-btn-bg: #050505;
+  --bs-btn-border-color: #050505;
+  --bs-btn-hover-bg: #1c1c1f;
+  --bs-btn-hover-border-color: #1c1c1f;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #2b6afd;
+  --bs-btn-border-color: #b8c8ff;
+  --bs-btn-hover-bg: #2b6afd;
+  --bs-btn-hover-border-color: #2b6afd;
+}
+
+.form-control,
+.form-select,
+.input-group-text {
+  border-color: var(--app-border);
+  border-radius: 8px;
+}
+
+.input-group > .form-control,
+.input-group > .form-select,
+.input-group > .input-group-text,
+.input-group > .btn {
+  border-radius: 0;
+}
+
+.input-group > :first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.input-group > :last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #2b6afd;
+  box-shadow: 0 0 0 0.2rem rgba(43, 106, 253, 0.14);
+}
+
+.badge,
+.status-badge {
+  font-weight: 650;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.status-badge::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 0.45rem;
+  border-radius: 50%;
+  background: var(--status-color, #8a93a3);
+}
+
+.status-blue {
+  --status-color: #2b6afd;
+}
+
+.status-black {
+  --status-color: #050505;
+}
+
+.status-outline,
+.status-outline-blue {
+  --status-color: #6b7280;
+}
+
+.status-outline {
+  --status-color: #050505;
+}
+
+.status-outline-blue {
+  --status-color: #2b6afd;
+}
+
+.status-muted {
+  --status-color: #8a93a3;
+}
+
+.dropdown-menu {
+  border-color: var(--app-border);
+  box-shadow: var(--app-shadow);
+}
