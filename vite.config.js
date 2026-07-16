@@ -19,11 +19,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://keen-erp-portal-backend.onrender.com/',
         changeOrigin: true
       },
       '/uploads': {
-        target: 'http://localhost:8080',
+        target: 'https://keen-erp-portal-backend.onrender.com/uploads',
         changeOrigin: true
       }
     }
