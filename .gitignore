@@ -1,5 +1,7 @@
 node_modules/
 dist/
+vite-dev.err.log
+vite-dev.log
 .env
 guide.MD
 .env.*
