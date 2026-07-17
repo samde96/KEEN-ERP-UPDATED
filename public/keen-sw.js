@@ -1,5 +1,9 @@
-const CACHE_NAME = 'keen-shell-v2';
+const CACHE_NAME = 'keen-shell-v3';
 const SHELL_URLS = ['/', '/index.html', '/manifest.webmanifest', '/Keen_Logo.png'];
+
+async function shellFallback() {
+  return (await caches.match('/')) || (await caches.match('/index.html')) || Response.error();
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -36,7 +40,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
           return response;
         })
-        .catch(() => caches.match('/') || caches.match('/index.html'))
+        .catch(() => shellFallback())
     );
     return;
   }
@@ -52,7 +56,7 @@ self.addEventListener('fetch', (event) => {
             }
             return response;
           })
-          .catch(() => cached);
+          .catch(() => cached || Response.error());
 
         return cached || network;
       })

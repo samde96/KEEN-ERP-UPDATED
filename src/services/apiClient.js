@@ -16,8 +16,28 @@ export const offlineEvents = {
   syncFinished: 'keen:offline-sync-finished'
 };
 
+const API_VERSION_PATH = '/api/v1';
+
+function normalizeApiBaseUrl(value) {
+  const raw = (value || API_VERSION_PATH).trim();
+  if (!raw) {
+    return API_VERSION_PATH;
+  }
+
+  const baseUrl = raw.replace(/\/+$/, '');
+  if (/\/api\/v\d+$/i.test(baseUrl)) {
+    return baseUrl;
+  }
+
+  if (/\/api$/i.test(baseUrl)) {
+    return `${baseUrl}/v1`;
+  }
+
+  return `${baseUrl}${API_VERSION_PATH}`;
+}
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL),
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
