@@ -1,9 +1,5 @@
 import { apiClient } from './apiClient';
 
-function encodeBasicAuth(email, password) {
-  return `Basic ${window.btoa(`${email}:${password}`)}`;
-}
-
 function authErrorMessage(error, fallback) {
   return error.response?.data?.detail || error.response?.data?.message || error.message || fallback;
 }
@@ -13,6 +9,20 @@ function responseMessage(response, fallback) {
 }
 
 export const authService = {
+  async session() {
+    try {
+      const response = await apiClient.get('/auth/session', {
+        __disableOfflineCache: true
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
   async login({ email, password }) {
     const normalizedEmail = email?.trim().toLowerCase();
     let response;
@@ -27,10 +37,21 @@ export const authService = {
       throw new Error(message);
     }
 
-    return {
-      ...response.data,
-      authHeader: encodeBasicAuth(normalizedEmail, password)
-    };
+    return response.data;
+  },
+
+  async completeMfaLogin({ email, code, rememberDevice }) {
+    try {
+      const response = await apiClient.post('/auth/login/mfa', {
+        email: email?.trim().toLowerCase(),
+        code,
+        rememberDevice: Boolean(rememberDevice)
+      });
+      return response.data;
+    } catch (error) {
+      const message = authErrorMessage(error, 'Unable to verify the code. Check it and try again.');
+      throw new Error(message);
+    }
   },
 
   async forgotPassword({ email }) {
@@ -80,6 +101,13 @@ export const authService = {
   },
 
   async logout() {
-    return Promise.resolve();
+    try {
+      const response = await apiClient.post('/auth/logout', null, {
+        __disableOfflineQueue: true
+      });
+      return responseMessage(response, 'Signed out.');
+    } catch {
+      return 'Signed out.';
+    }
   }
 };

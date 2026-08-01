@@ -1,13 +1,10 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
 import { catalogService } from '../services/catalogService';
 import { useAuth } from '../hooks/useAuth';
+import { isOperationalStockLocation, isShopLocation } from '../utils/locationTypes';
+import { hasRole } from '../utils/permissionUtils';
 
 export const BranchContext = createContext(null);
-
-function isStoreLocation(location) {
-  const normalized = String(location.type || '').toUpperCase().replace(/\s+/g, '_');
-  return ['STORE', 'MAIN_WAREHOUSE', 'WAREHOUSE'].includes(normalized);
-}
 
 export function BranchProvider({ children }) {
   const { isAuthenticated, user } = useAuth();
@@ -34,8 +31,11 @@ export function BranchProvider({ children }) {
         let assignedLocations = assignedLocationIds.size
           ? rows.filter((location) => assignedLocationIds.has(String(location.id)))
           : [];
-        if (!assignedLocations.length && ['ADMIN', 'STORE_MANAGER'].includes(user?.role)) {
-          assignedLocations = rows.filter(isStoreLocation);
+        if (!assignedLocations.length && hasRole(user, ['ADMIN', 'STORE_MANAGER'])) {
+          assignedLocations = rows.filter(isOperationalStockLocation);
+        }
+        if (!assignedLocations.length && hasRole(user, ['SHOP_MANAGER'])) {
+          assignedLocations = rows.filter(isShopLocation);
         }
 
         setLocations(assignedLocations);
@@ -50,7 +50,7 @@ export function BranchProvider({ children }) {
     return () => {
       mounted = false;
     };
-  }, [isAuthenticated, user?.locationIds]);
+  }, [isAuthenticated, user]);
 
   const value = useMemo(
     () => ({
@@ -59,7 +59,7 @@ export function BranchProvider({ children }) {
       currentLocationId,
       setCurrentLocationId
     }),
-    [currentLocation, currentLocationId]
+    [currentLocation, currentLocationId, locations]
   );
 
   return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>;

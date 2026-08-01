@@ -11,16 +11,23 @@ import { productService } from '../../services/productService';
 import { transferService } from '../../services/transferService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
+import { balanceMatchesLocation, isLikelyWarehouseBalance, isWarehouseLocation } from '../../utils/locationTypes';
 
 export function WarehouseDashboard() {
-  const { currentLocation } = useBranch();
+  const { currentLocation, locations } = useBranch();
   const { data: stockBalances } = useAsyncData(inventoryService.balances);
-  const { data: stockRequests } = useAsyncData(transferService.requests);
+  const { data: stockRequests } = useAsyncData(transferService.requests, [], [], { pollIntervalMs: 10000 });
   const { data: stockTransfers } = useAsyncData(transferService.transfers);
   const { data: products } = useAsyncData(productService.list.bind(productService));
   const { data: supplierDeliveries } = useAsyncData(inventoryService.deliveries);
   const productBySku = new Map(products.map((product) => [product.sku, product]));
-  const warehouseStock = currentLocation?.name ? stockBalances.filter((row) => row.location === currentLocation.name) : stockBalances.filter((row) => !row.location.includes('Shop'));
+  const productById = new Map(products.map((product) => [String(product.id), product]));
+  const warehouseLocations = locations.filter(isWarehouseLocation);
+  const selectedWarehouse = currentLocation && isWarehouseLocation(currentLocation) ? currentLocation : null;
+  const visibleWarehouseLocations = selectedWarehouse ? [selectedWarehouse] : warehouseLocations;
+  const warehouseStock = visibleWarehouseLocations.length
+    ? stockBalances.filter((row) => visibleWarehouseLocations.some((location) => balanceMatchesLocation(row, location)))
+    : stockBalances.filter(isLikelyWarehouseBalance);
   const warehouseUnits = warehouseStock.reduce((sum, row) => sum + Number(row.available || 0) + Number(row.reserved || 0), 0);
   const stockValue = warehouseStock.reduce((sum, row) => {
     const product = productBySku.get(row.sku);
@@ -29,8 +36,25 @@ export function WarehouseDashboard() {
   }, 0);
   const pendingRequests = stockRequests.filter((request) => ['PENDING', 'Pending'].includes(request.status));
   const transfersInTransit = stockTransfers.filter(
-    (transfer) => ['IN_TRANSIT', 'In Transit'].includes(transfer.status) && (!currentLocation?.name || transfer.source === currentLocation.name)
+    (transfer) =>
+      ['IN_TRANSIT', 'In Transit'].includes(transfer.status) &&
+      (!visibleWarehouseLocations.length || visibleWarehouseLocations.some((location) => transfer.source === location.name))
   );
+  const lowStockProducts = stockBalances
+    .map((row) => {
+      const product = productById.get(String(row.productId)) || productBySku.get(row.sku);
+      const reorderLevel = Number(product?.reorderLevel || 0);
+      const available = Number(row.available || 0);
+      return {
+        ...row,
+        available,
+        reorderLevel,
+        supplier: product?.supplier || '-',
+        shortage: Math.max(reorderLevel - available, 0)
+      };
+    })
+    .filter((row) => ['LOW_STOCK', 'Low Stock'].includes(row.status) || (row.reorderLevel > 0 && row.available <= row.reorderLevel))
+    .sort((first, second) => second.shortage - first.shortage || first.product.localeCompare(second.product));
 
   return (
     <>
@@ -92,6 +116,30 @@ export function WarehouseDashboard() {
             ))}
           </div>
         </div>
+      </section>
+      <section className="panel" data-animate="fade-up">
+        <div className="panel-header">
+          <div>
+            <span className="panel-kicker">Inventory</span>
+            <h2>Low-stock products</h2>
+          </div>
+          <Link className="btn btn-sm btn-outline-primary" to="/warehouse/inventory">
+            View inventory
+          </Link>
+        </div>
+        <DataTable
+          data={lowStockProducts}
+          emptyText="No low-stock products found."
+          columns={[
+            { key: 'product', label: 'Product' },
+            { key: 'location', label: 'Location' },
+            { key: 'available', label: 'Available' },
+            { key: 'reorderLevel', label: 'Reorder level' },
+            { key: 'inTransit', label: 'In Transit' },
+            { key: 'supplier', label: 'Supplier' },
+            { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> }
+          ]}
+        />
       </section>
       <RFIDAlertPanel />
     </>

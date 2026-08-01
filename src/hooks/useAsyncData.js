@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export function useAsyncData(loader, initialValue = [], deps = []) {
+export function useAsyncData(loader, initialValue = [], deps = [], options = {}) {
   const [data, setData] = useState(initialValue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const { pollIntervalMs = 0 } = options;
 
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
@@ -33,6 +34,15 @@ export function useAsyncData(loader, initialValue = [], deps = []) {
       mounted = false;
     };
   }, [...deps, reloadKey]);
+
+  useEffect(() => {
+    if (!pollIntervalMs || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const interval = window.setInterval(reload, pollIntervalMs);
+    return () => window.clearInterval(interval);
+  }, [pollIntervalMs, reload]);
 
   return { data, loading, error, reload, setData };
 }

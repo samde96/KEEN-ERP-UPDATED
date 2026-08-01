@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const apiProxyTarget = 'http://localhost:8082';
+
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -19,11 +21,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://keen-erp-portal-backend.onrender.com/',
+        target: apiProxyTarget,
         changeOrigin: true
       },
       '/uploads': {
-        target: 'https://keen-erp-portal-backend.onrender.com/uploads',
+        target: apiProxyTarget,
         changeOrigin: true
       }
     }

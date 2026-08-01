@@ -4,6 +4,11 @@ vite-dev.err.log
 vite-dev.log
 .env
 guide.MD
+AWS_HOSTING.MD
+Mpesaguide.MD
+operation.MD
+Quotation.MD
+.pdf
 .env.*
 .env.local
 .env.*.local

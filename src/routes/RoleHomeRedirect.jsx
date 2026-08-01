@@ -10,7 +10,11 @@ const roleHome = {
   [ROLES.AUDITOR]: '/reports'
 };
 
+const homeRolePriority = [ROLES.ADMIN, ROLES.STORE_MANAGER, ROLES.SHOP_MANAGER, ROLES.CASHIER, ROLES.AUDITOR];
+
 export function RoleHomeRedirect() {
   const { user } = useAuth();
-  return <Navigate to={roleHome[user?.role] || '/login'} replace />;
+  const roles = Array.isArray(user?.roles) && user.roles.length ? user.roles : [user?.role].filter(Boolean);
+  const homeRole = homeRolePriority.find((role) => roles.includes(role));
+  return <Navigate to={roleHome[homeRole] || '/login'} replace />;
 }

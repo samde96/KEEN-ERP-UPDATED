@@ -16,6 +16,18 @@ export const transferService = {
     return response.data;
   },
 
+  async dispatchFromOperation(response) {
+    if (response?.dispatch?.transfer) {
+      return response.dispatch;
+    }
+
+    if (response?.transferNumber) {
+      return transferService.getTransfer(response.transferNumber);
+    }
+
+    return null;
+  },
+
   async transfers() {
     const response = await apiClient.get('/stock-transfers');
     return response.data || [];

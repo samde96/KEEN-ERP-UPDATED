@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { CameraBarcodeScanner } from '../../components/common/CameraBarcodeScanner';
 import { BarcodeScannerInput } from '../../components/pos/BarcodeScannerInput';
 import { PageHeader } from '../../components/common/PageHeader';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { catalogService } from '../../services/catalogService';
 import { inventoryService } from '../../services/inventoryService';
 import { productService } from '../../services/productService';
-
-function isStockLocation(location) {
-  return ['MAIN_WAREHOUSE', 'STORE', 'SHOP', 'BRANCH'].includes(String(location.type || '').toUpperCase().replace(/\s+/g, '_'));
-}
+import { isWarehouseLocation } from '../../utils/locationTypes';
 
 function numberOrDefault(value, fallback = 1) {
   const parsed = Number(value);
@@ -75,91 +73,6 @@ function findScannedProduct(products, payload) {
   );
 }
 
-function CameraCodeScanner({ onScan }) {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const intervalRef = useRef(null);
-  const detectorRef = useRef(null);
-  const onScanRef = useRef(onScan);
-  const lastScanRef = useRef('');
-  const [active, setActive] = useState(false);
-  const [status, setStatus] = useState('');
-
-  useEffect(() => {
-    onScanRef.current = onScan;
-  }, [onScan]);
-
-  useEffect(() => {
-    if (!active) return undefined;
-    let cancelled = false;
-
-    const stopCamera = () => {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    };
-
-    async function startCamera() {
-      if (!('BarcodeDetector' in window)) {
-        setStatus('Camera scanning is not supported in this browser.');
-        setActive(false);
-        return;
-      }
-
-      try {
-        detectorRef.current = new window.BarcodeDetector({
-          formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e']
-        });
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setStatus('Camera scanner active');
-
-        intervalRef.current = window.setInterval(async () => {
-          if (!videoRef.current || !detectorRef.current) return;
-          try {
-            const results = await detectorRef.current.detect(videoRef.current);
-            const value = results[0]?.rawValue?.trim();
-            if (!value || value === lastScanRef.current) return;
-            lastScanRef.current = value;
-            onScanRef.current(value);
-            window.setTimeout(() => {
-              if (lastScanRef.current === value) lastScanRef.current = '';
-            }, 1200);
-          } catch {
-            // Keep the camera session alive if a frame cannot be decoded.
-          }
-        }, 450);
-      } catch {
-        setStatus('Unable to start camera scanner.');
-        setActive(false);
-      }
-    }
-
-    startCamera();
-    return () => {
-      cancelled = true;
-      stopCamera();
-    };
-  }, [active]);
-
-  return (
-    <div className="d-grid gap-2">
-      <button className={`btn ${active ? 'btn-outline-danger' : 'btn-outline-primary'}`} type="button" onClick={() => setActive((current) => !current)}>
-        <i className={`bi ${active ? 'bi-camera-video-off' : 'bi-camera-video'}`} aria-hidden="true" /> {active ? 'Stop camera' : 'Scan with camera'}
-      </button>
-      {active ? <video ref={videoRef} className="w-100 rounded border" muted playsInline /> : null}
-      {status ? <small className="text-muted">{status}</small> : null}
-    </div>
-  );
-}
-
 export function AddStock() {
   const [scanValue, setScanValue] = useState('');
   const [receiptLines, setReceiptLines] = useState([]);
@@ -169,7 +82,7 @@ export function AddStock() {
   const { data: suppliers } = useAsyncData(catalogService.suppliers);
   const { data: locations } = useAsyncData(catalogService.locations);
   const { data: products } = useAsyncData(productService.list.bind(productService));
-  const stockLocations = locations.filter(isStockLocation);
+  const receivingLocations = locations.filter(isWarehouseLocation);
   const { register, handleSubmit, reset, setValue, getValues, formState } = useForm({
     defaultValues: {
       supplierId: '',
@@ -209,7 +122,16 @@ export function AddStock() {
     const payload = parseScanPayload(rawValue);
     if (!payload) return;
 
-    if (payload.locationId) setValue('locationId', payload.locationId, { shouldDirty: true, shouldValidate: true });
+    if (payload.locationId) {
+      const receivingLocation = receivingLocations.find((location) => String(location.id) === String(payload.locationId));
+      if (receivingLocation) {
+        setValue('locationId', payload.locationId, { shouldDirty: true, shouldValidate: true });
+      } else {
+        setLastScan(`${payload.raw} points to a non-receiving location`);
+        setError('Scanned location is not available for supplier receiving. Receive into a store or main warehouse, then transfer stock to shops.');
+        return;
+      }
+    }
     if (payload.supplierId) setValue('supplierId', payload.supplierId, { shouldDirty: true });
     if (payload.batchNumber) setValue('batchNumber', payload.batchNumber, { shouldDirty: true });
     if (payload.expiryDate) setValue('expiryDate', payload.expiryDate, { shouldDirty: true });
@@ -260,6 +182,10 @@ export function AddStock() {
       setError('Add at least one scanned or selected product before posting stock.');
       return;
     }
+    if (!receivingLocations.some((location) => String(location.id) === String(values.locationId))) {
+      setError('Select a store or main warehouse receiving location. Shop stock must come through transfers or shop requests.');
+      return;
+    }
 
     try {
       const reference = values.referenceNumber || values.batchNumber || `GRN-${Date.now()}`;
@@ -283,7 +209,7 @@ export function AddStock() {
 
   return (
     <>
-      <PageHeader title="Add stock" description="Receive supplier stock by scanner, product lookup, batch, expiry date, and quantity." />
+      <PageHeader title="Add stock" description="Receive supplier stock into a store or main warehouse by scanner, product lookup, batch, expiry date, and quantity." />
       {message ? <div className="alert alert-success">{message}</div> : null}
       {error ? <div className="alert alert-danger">{error}</div> : null}
       <section className="dashboard-grid">
@@ -296,7 +222,7 @@ export function AddStock() {
           </div>
           <div className="d-grid gap-3">
             <BarcodeScannerInput value={scanValue} onChange={setScanValue} onSubmit={handleScanSubmit} placeholder="Scan barcode, SKU, or QR payload" />
-            <CameraCodeScanner onScan={applyScan} />
+            <CameraBarcodeScanner onScan={applyScan} />
           </div>
           {lastScan ? (
             <div className={`alert mt-3 ${lastScan.includes('not found') ? 'alert-warning' : 'alert-success'}`}>
@@ -312,8 +238,8 @@ export function AddStock() {
             </div>
           </div>
           <form className="app-form-grid" onSubmit={handleSubmit(postReceipt)}>
-            {stockLocations.length === 0 || products.length === 0 ? (
-              <div className="col-span-2 alert alert-warning">Create at least one stock location and product before receiving stock.</div>
+            {receivingLocations.length === 0 || products.length === 0 ? (
+              <div className="col-span-2 alert alert-warning">Create at least one store/main warehouse location and product before receiving stock.</div>
             ) : null}
             <div>
               <label className="form-label" htmlFor="supplier">
@@ -330,11 +256,11 @@ export function AddStock() {
             </div>
             <div>
               <label className="form-label" htmlFor="location">
-                Location
+                Receiving location
               </label>
               <select id="location" className="form-select" {...register('locationId', { required: true })}>
-                <option value="">Select location</option>
-                {stockLocations.map((location) => (
+                <option value="">Select receiving location</option>
+                {receivingLocations.map((location) => (
                   <option key={location.id} value={location.id}>
                     {location.name}
                   </option>
@@ -431,7 +357,7 @@ export function AddStock() {
               </div>
             </div>
             <div className="col-span-2 d-flex justify-content-end">
-              <button className="btn btn-primary" type="submit" disabled={formState.isSubmitting || stockLocations.length === 0 || products.length === 0 || receiptLines.length === 0}>
+              <button className="btn btn-primary" type="submit" disabled={formState.isSubmitting || receivingLocations.length === 0 || products.length === 0 || receiptLines.length === 0}>
                 <i className="bi bi-box-arrow-in-down" aria-hidden="true" /> Post received stock
               </button>
             </div>

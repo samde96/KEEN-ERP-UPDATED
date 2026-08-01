@@ -31,5 +31,17 @@ export const securityService = {
   async sendTestEmail() {
     const response = await apiClient.post('/notifications/test-email');
     return response.data;
+  },
+
+  async notificationEmailSettings() {
+    const response = await apiClient.get('/notifications/email-settings');
+    return response.data || { recipientEmails: [] };
+  },
+
+  async saveNotificationEmailSettings(settings) {
+    const response = await apiClient.put('/notifications/email-settings', {
+      recipientEmails: settings.recipientEmails || []
+    });
+    return response.data;
   }
 };

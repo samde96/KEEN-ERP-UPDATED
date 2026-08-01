@@ -1,8 +1,26 @@
 import { useState } from 'react';
 
+function resolveProductPhotoUrl(src) {
+  const imageUrl = typeof src === 'string' ? src.trim() : '';
+  if (!imageUrl || !imageUrl.startsWith('/uploads/')) {
+    return imageUrl;
+  }
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  if (!/^https?:\/\//i.test(apiBaseUrl)) {
+    return imageUrl;
+  }
+
+  try {
+    return new URL(imageUrl, apiBaseUrl).toString();
+  } catch {
+    return imageUrl;
+  }
+}
+
 export function ProductPhoto({ src, alt = 'Product photo', size = 'thumb', className = '' }) {
   const [failed, setFailed] = useState(false);
-  const imageUrl = typeof src === 'string' ? src.trim() : '';
+  const imageUrl = resolveProductPhotoUrl(src);
   const showImage = imageUrl && !failed;
   const classes = ['product-photo', `product-photo-${size}`, className].filter(Boolean).join(' ');
 

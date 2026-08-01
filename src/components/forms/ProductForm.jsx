@@ -1,8 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { CameraBarcodeScanner } from '../common/CameraBarcodeScanner';
 import { ProductPhoto } from '../common/ProductPhoto';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { catalogService } from '../../services/catalogService';
+
+const ACCEPTED_PRODUCT_PHOTO_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
+
+const VAT_CODES = [
+  { code: 'A', rate: 0, label: 'A - 0% VAT' },
+  { code: 'G', rate: 16, label: 'G - 16% VAT' }
+];
+
+function firstPhotoFile(value) {
+  if (!value) return null;
+  if (typeof File !== 'undefined' && value instanceof File) return value;
+  if (typeof value.length === 'number') {
+    return value.item ? value.item(0) : value[0];
+  }
+  return null;
+}
 
 export function ProductForm({ onSubmit, defaultValues }) {
   const { data: categories } = useAsyncData(catalogService.categories);
@@ -28,6 +45,10 @@ export function ProductForm({ onSubmit, defaultValues }) {
   });
 
   useEffect(() => {
+    register('photoFile');
+  }, [register]);
+
+  useEffect(() => {
     if (!defaultValues) return;
     const category = categories.find((item) => item.name === defaultValues.category || item.id === defaultValues.categoryId);
     const supplier = suppliers.find((item) => item.name === defaultValues.supplier || item.id === defaultValues.supplierId);
@@ -51,8 +72,25 @@ export function ProductForm({ onSubmit, defaultValues }) {
     setValue('barcode', `${base}${checkDigit}`, { shouldDirty: true, shouldValidate: true });
   };
 
+  const applyBarcodeScan = (barcode) => {
+    setValue('barcode', barcode, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const preventBarcodeEnterSubmit = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+    }
+  };
+
+  const handlePhotoSelected = (event) => {
+    const selectedPhoto = firstPhotoFile(event.target.files);
+    if (!selectedPhoto) return;
+    setValue('photoFile', selectedPhoto, { shouldDirty: true, shouldValidate: true });
+    event.target.value = '';
+  };
+
   useEffect(() => {
-    const selectedPhoto = photoFile?.item ? photoFile.item(0) : photoFile?.[0];
+    const selectedPhoto = firstPhotoFile(photoFile);
     if (!selectedPhoto) {
       setPhotoPreviewUrl(defaultValues?.imageUrl || '');
       return undefined;
@@ -87,21 +125,31 @@ export function ProductForm({ onSubmit, defaultValues }) {
           Barcode
         </label>
         <div className="input-group">
-          <input id="product-barcode" className="form-control" {...register('barcode')} />
+          <input id="product-barcode" className="form-control" placeholder="Scan or type barcode" autoComplete="off" inputMode="numeric" onKeyDown={preventBarcodeEnterSubmit} {...register('barcode')} />
           <button className="btn btn-outline-primary" type="button" onClick={generateBarcode}>
             <i className="bi bi-upc-scan" aria-hidden="true" /> Auto
           </button>
         </div>
+        <CameraBarcodeScanner onScan={applyBarcodeScan} buttonLabel="Camera" stopAfterScan />
       </div>
       <div className="col-span-2 product-photo-field">
         <ProductPhoto src={photoPreviewUrl || imageUrl} alt={productName || 'Product photo'} size="form" />
         <div className="product-photo-control">
           <input type="hidden" {...register('imageUrl')} />
-          <label className="form-label" htmlFor="product-photo">
+          <label className="form-label" htmlFor="product-photo-device">
             Product photo
           </label>
-          <input id="product-photo" className="form-control" type="file" accept="image/png,image/jpeg,image/webp,image/gif" {...register('photoFile')} />
-          <div className="form-text">Choose a JPG, PNG, WebP, or GIF image from this device. Maximum size is 5 MB.</div>
+          <div className="product-photo-actions">
+            <label className="btn btn-outline-secondary" htmlFor="product-photo-device">
+              <i className="bi bi-folder2-open" aria-hidden="true" /> Device
+            </label>
+            <input id="product-photo-device" className="visually-hidden" type="file" accept={ACCEPTED_PRODUCT_PHOTO_TYPES} onChange={handlePhotoSelected} />
+            <label className="btn btn-outline-primary" htmlFor="product-photo-camera">
+              <i className="bi bi-camera" aria-hidden="true" /> Camera
+            </label>
+            <input id="product-photo-camera" className="visually-hidden" type="file" accept="image/jpeg" capture="environment" onChange={handlePhotoSelected} />
+          </div>
+          <div className="form-text">JPG, PNG, WebP, or GIF. Maximum size is 5 MB.</div>
         </div>
       </div>
       <div>
@@ -168,9 +216,15 @@ export function ProductForm({ onSubmit, defaultValues }) {
       </div>
       <div>
         <label className="form-label" htmlFor="product-tax">
-          Tax rate
+          VAT code
         </label>
-        <input id="product-tax" className="form-control" type="number" min="0" {...register('taxRate')} />
+        <select id="product-tax" className="form-select" {...register('taxRate')}>
+          {VAT_CODES.map((vatCode) => (
+            <option key={vatCode.code} value={vatCode.rate}>
+              {vatCode.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="col-span-2 d-flex justify-content-end">
         <button className="btn btn-primary" type="submit" disabled={formState.isSubmitting || !catalogReady}>

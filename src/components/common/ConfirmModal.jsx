@@ -1,8 +1,11 @@
+import { createPortal } from 'react-dom';
+
 export function ConfirmModal({ open, title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', tone = 'primary', onCancel, onConfirm, size = '' }) {
   if (!open) return null;
 
-  return (
-    <div className="modal-backdrop-shell" role="presentation">
+  const modal = (
+    <>
+      <div className="modal-backdrop show app-modal-backdrop" role="presentation" />
       <div className="modal d-block app-modal" tabIndex="-1" role="dialog" aria-modal="true">
         <div className={`modal-dialog modal-dialog-centered ${size}`}>
           <div className="modal-content">
@@ -28,6 +31,8 @@ export function ConfirmModal({ open, title, body, confirmLabel = 'Confirm', canc
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
+
+  return createPortal(modal, document.body);
 }

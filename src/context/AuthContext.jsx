@@ -3,26 +3,65 @@ import { authService } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
-const STORAGE_KEY = 'keen.inventory.session';
-
-function getStoredUser() {
+function clearLegacyStoredSession() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    localStorage.removeItem('keen.inventory.session');
   } catch {
-    return null;
+    // Ignore storage access failures; cookie session restore still decides auth state.
   }
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(getStoredUser);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    clearLegacyStoredSession();
+
+    authService
+      .session()
+      .then((nextUser) => {
+        if (active) {
+          setUser(nextUser);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const signIn = useCallback(async (credentials) => {
     setLoading(true);
     try {
-      const nextUser = await authService.login(credentials);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+      const result = await authService.login(credentials);
+      if (result?.mfaRequired) {
+        setUser(null);
+        return result;
+      }
+
+      setUser(result);
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const completeMfaSignIn = useCallback(async (challenge) => {
+    setLoading(true);
+    try {
+      const nextUser = await authService.completeMfaLogin(challenge);
       setUser(nextUser);
       return nextUser;
     } finally {
@@ -32,13 +71,11 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     await authService.logout();
-    localStorage.removeItem(STORAGE_KEY);
     setUser(null);
   }, []);
 
   useEffect(() => {
     const handleExpired = () => {
-      localStorage.removeItem(STORAGE_KEY);
       setUser(null);
     };
 
@@ -52,9 +89,10 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated: Boolean(user),
       signIn,
+      completeMfaSignIn,
       signOut
     }),
-    [loading, signIn, signOut, user]
+    [completeMfaSignIn, loading, signIn, signOut, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

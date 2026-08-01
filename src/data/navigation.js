@@ -10,8 +10,8 @@ export const navigationSections = [
       { label: 'Users', path: '/admin/users', icon: 'bi-people' },
       { label: 'Roles', path: '/admin/roles', icon: 'bi-shield-check' },
       { label: 'Products', path: '/admin/products', icon: 'bi-box-seam' },
+      { label: 'Stock Requests', path: '/admin/stock-requests', icon: 'bi-clipboard-check' },
       { label: 'Suppliers', path: '/admin/suppliers', icon: 'bi-truck' },
-      { label: 'Reports', path: '/admin/reports', icon: 'bi-bar-chart-line' },
       { label: 'Audit Logs', path: '/admin/audit', icon: 'bi-journal-text' },
       { label: 'Security', path: '/admin/security', icon: 'bi-shield-lock' },
       { label: 'Settings', path: '/admin/settings', icon: 'bi-gear' }
@@ -55,7 +55,6 @@ export const navigationSections = [
     items: [
       { label: 'Checkout', path: '/pos/checkout', icon: 'bi-cart-check' },
       { label: 'Product Lookup', path: '/pos/product-search', icon: 'bi-search' },
-      { label: 'Receipt Preview', path: '/pos/receipt', icon: 'bi-receipt' },
       { label: 'Open Shift', path: '/pos/shift-open', icon: 'bi-unlock' },
       { label: 'Close Shift', path: '/pos/shift-close', icon: 'bi-lock' },
       { label: 'Returns', path: '/pos/returns', icon: 'bi-arrow-return-left', roles: [ROLES.CASHIER] }
@@ -70,12 +69,25 @@ export const navigationSections = [
   }
 ];
 
-export function getNavigationForRole(role) {
+function roleList(roleOrRoles) {
+  if (Array.isArray(roleOrRoles)) {
+    return roleOrRoles.filter(Boolean);
+  }
+  return roleOrRoles ? [roleOrRoles] : [];
+}
+
+function hasAnyRole(userRoles, allowedRoles) {
+  return allowedRoles.some((role) => userRoles.includes(role));
+}
+
+export function getNavigationForRole(roleOrRoles) {
+  const userRoles = roleList(roleOrRoles);
+
   return navigationSections
     .map((section) => ({
       ...section,
-      items: section.roles.includes(role)
-        ? section.items.filter((item) => !item.roles || item.roles.includes(role))
+      items: hasAnyRole(userRoles, section.roles)
+        ? section.items.filter((item) => !item.roles || hasAnyRole(userRoles, item.roles))
         : []
     }))
     .filter((section) => section.items.length > 0);

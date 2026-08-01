@@ -13,10 +13,13 @@ import {
 export const offlineEvents = {
   queueChanged: 'keen:offline-queue-changed',
   syncStarted: 'keen:offline-sync-started',
-  syncFinished: 'keen:offline-sync-finished'
+  syncFinished: 'keen:offline-sync-finished',
+  connectivityChanged: 'keen:offline-connectivity-changed'
 };
 
 const API_VERSION_PATH = '/api/v1';
+const CSRF_COOKIE_NAME = 'KEEN_CSRF';
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
 
 function normalizeApiBaseUrl(value) {
   const raw = (value || API_VERSION_PATH).trim();
@@ -36,6 +39,22 @@ function normalizeApiBaseUrl(value) {
   return `${baseUrl}${API_VERSION_PATH}`;
 }
 
+function normalizeEndpointPath(value) {
+  if (!value || /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const suffixIndex = value.search(/[?#]/);
+  const pathEnd = suffixIndex === -1 ? value.length : suffixIndex;
+  const path = value.slice(0, pathEnd);
+  const suffix = value.slice(pathEnd);
+  const normalizedPath = path
+    .replace(/^\/api\/v\d+(?=\/|$)/i, '')
+    .replace(/^\/api(?=\/|$)/i, '');
+
+  return `${normalizedPath || '/'}${suffix}`;
+}
+
 export const apiClient = axios.create({
   baseURL: normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL),
   withCredentials: true,
@@ -52,6 +71,10 @@ function dispatchOfflineEvent(name, detail = {}) {
   }
 }
 
+function dispatchConnectivity(online) {
+  dispatchOfflineEvent(offlineEvents.connectivityChanged, { online });
+}
+
 function requestMethod(config) {
   return (config.method || 'get').toUpperCase();
 }
@@ -61,14 +84,42 @@ function isMutation(config) {
 }
 
 function isAuthRequest(config) {
-  return (config.url || '').startsWith('/auth/');
+  return normalizeEndpointPath(config.url || '').startsWith('/auth/');
 }
 
 function isFormDataPayload(value) {
   return typeof FormData !== 'undefined' && value instanceof FormData;
 }
 
+function responseText(error) {
+  const data = error.response?.data;
+  if (typeof data === 'string') {
+    return data;
+  }
+  if (data && typeof data === 'object') {
+    return `${data.detail || ''} ${data.message || ''}`;
+  }
+  return '';
+}
+
+function isProxyOfflineResponse(error) {
+  const status = Number(error.response?.status || 0);
+  if ([502, 503, 504].includes(status)) {
+    return true;
+  }
+
+  if (status !== 500) {
+    return false;
+  }
+
+  return /proxy|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|fetch failed|network error/i.test(responseText(error));
+}
+
 function isOfflineFailure(error) {
+  if (isProxyOfflineResponse(error)) {
+    return true;
+  }
+
   return !error.response && (typeof navigator === 'undefined' || navigator.onLine === false || ['ERR_NETWORK', 'ECONNABORTED'].includes(error.code));
 }
 
@@ -99,6 +150,36 @@ function setHeader(config, name, value) {
   } else {
     config.headers[name] = value;
   }
+}
+
+function removeHeader(config, name) {
+  if (!config.headers) {
+    return;
+  }
+
+  if (typeof config.headers.delete === 'function') {
+    config.headers.delete(name);
+    return;
+  }
+
+  const normalized = name.toLowerCase();
+  Object.keys(config.headers).forEach((key) => {
+    if (key.toLowerCase() === normalized) {
+      delete config.headers[key];
+    }
+  });
+}
+
+function getCookie(name) {
+  if (typeof document === 'undefined') {
+    return '';
+  }
+
+  return document.cookie
+    .split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`))
+    ?.slice(name.length + 1) || '';
 }
 
 function stableClone(value) {
@@ -195,7 +276,7 @@ export async function getOfflineQueueCount() {
 }
 
 export async function syncOfflineQueue() {
-  if (syncInFlight || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+  if (syncInFlight) {
     return { synced: 0, pending: await queuedRequestCount() };
   }
 
@@ -207,6 +288,12 @@ export async function syncOfflineQueue() {
     const entries = await queuedRequests();
 
     for (const entry of entries) {
+      const normalizedUrl = normalizeEndpointPath(entry.url || '');
+      if (normalizedUrl.startsWith('/auth/')) {
+        await removeQueuedRequest(entry.id);
+        continue;
+      }
+
       await updateQueuedRequest(entry.id, {
         attempts: (entry.attempts || 0) + 1,
         status: 'syncing',
@@ -216,7 +303,7 @@ export async function syncOfflineQueue() {
       try {
         await apiClient.request({
           method: entry.method,
-          url: entry.url,
+          url: normalizedUrl,
           params: entry.params,
           data: deserializePayload(entry.body),
           headers: { 'Idempotency-Key': entry.idempotencyKey },
@@ -246,8 +333,14 @@ export async function syncOfflineQueue() {
 }
 
 apiClient.interceptors.request.use((config) => {
-  const requestUrl = config.url || '';
-  if (requestUrl.startsWith('/auth/')) {
+  const requestUrl = normalizeEndpointPath(config.url || '');
+  config.url = requestUrl;
+
+  if (isFormDataPayload(config.data)) {
+    removeHeader(config, 'Content-Type');
+  }
+
+  if (requestUrl.startsWith('/auth/') && requestUrl !== '/auth/logout') {
     return config;
   }
 
@@ -259,19 +352,13 @@ apiClient.interceptors.request.use((config) => {
     }
   }
 
-  try {
-    const session = JSON.parse(localStorage.getItem('keen.inventory.session') || 'null');
-
-    if (session?.authHeader) {
-      config.headers.Authorization = session.authHeader;
-    }
-  } catch {
-    // Ignore invalid session storage and let the backend reject protected calls.
-  }
-
   if (isMutation(config) && !config.__offlineReplay) {
-    if (!getHeader(config.headers, 'Idempotency-Key')) {
+    if (!isFormDataPayload(config.data) && !getHeader(config.headers, 'Idempotency-Key')) {
       setHeader(config, 'Idempotency-Key', createOfflineId('idem'));
+    }
+    const csrfToken = getCookie(CSRF_COOKIE_NAME);
+    if (csrfToken && !getHeader(config.headers, CSRF_HEADER_NAME)) {
+      setHeader(config, CSRF_HEADER_NAME, decodeURIComponent(csrfToken));
     }
     config.__offlineOriginalData = stableClone(config.data);
   }
@@ -281,7 +368,9 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   async (response) => {
-    if (requestMethod(response.config) === 'GET' && !isAuthRequest(response.config)) {
+    dispatchConnectivity(true);
+
+    if (requestMethod(response.config) === 'GET' && !isAuthRequest(response.config) && !response.config.__disableOfflineCache) {
       try {
         await cacheResponse({
           key: cacheKey(response.config),
@@ -304,7 +393,9 @@ apiClient.interceptors.response.use(
     }
 
     if (isOfflineFailure(error)) {
-      if (requestMethod(failedConfig) === 'GET' && !isAuthRequest(failedConfig)) {
+      dispatchConnectivity(false);
+
+      if (requestMethod(failedConfig) === 'GET' && !isAuthRequest(failedConfig) && !failedConfig.__disableOfflineCache) {
         try {
           const cached = await cachedResponse(cacheKey(failedConfig));
           if (cached) {
@@ -322,7 +413,7 @@ apiClient.interceptors.response.use(
         }
       }
 
-      if (isMutation(failedConfig)) {
+      if (isMutation(failedConfig) && !failedConfig.__disableOfflineQueue && !failedConfig.__offlineReplay) {
         return queueOfflineRequest(failedConfig);
       }
     }

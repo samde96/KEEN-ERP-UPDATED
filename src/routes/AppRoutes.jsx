@@ -7,14 +7,12 @@ import { RoleHomeRedirect } from './RoleHomeRedirect';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';
-import { MFAPage } from '../pages/auth/MFAPage';
 import { AdminDashboard } from '../pages/admin/AdminDashboard';
 import { BranchManagement } from '../pages/admin/BranchManagement';
 import { UserManagement } from '../pages/admin/UserManagement';
 import { RolePermissionManagement } from '../pages/admin/RolePermissionManagement';
 import { ProductCatalog } from '../pages/admin/ProductCatalog';
 import { SupplierManagement } from '../pages/admin/SupplierManagement';
-import { AdminReports } from '../pages/admin/AdminReports';
 import { AuditLogsPage } from '../pages/admin/AuditLogsPage';
 import { SecuritySettings } from '../pages/admin/SecuritySettings';
 import { SystemSettings } from '../pages/settings/SystemSettings';
@@ -39,7 +37,6 @@ import { CashierShiftReportsPage } from '../pages/shop/CashierShiftReportsPage';
 import { LowStockAlertsPage } from '../pages/shop/LowStockAlertsPage';
 import { POSCheckoutPage } from '../pages/pos/POSCheckoutPage';
 import { ProductLookupPage } from '../pages/pos/ProductLookupPage';
-import { ReceiptScreenPage } from '../pages/pos/ReceiptScreenPage';
 import { ShiftOpenPage } from '../pages/pos/ShiftOpenPage';
 import { ShiftClosePage } from '../pages/pos/ShiftClosePage';
 import { ReturnsRefundsPage } from '../pages/pos/ReturnsRefundsPage';
@@ -54,7 +51,7 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/mfa" element={<MFAPage />} />
+        <Route path="/mfa" element={<Navigate to="/login" replace />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
@@ -68,8 +65,9 @@ export function AppRoutes() {
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/roles" element={<RolePermissionManagement />} />
               <Route path="/admin/products" element={<ProductCatalog />} />
+              <Route path="/admin/stock-requests" element={<StockRequestsPage />} />
               <Route path="/admin/suppliers" element={<SupplierManagement />} />
-              <Route path="/admin/reports" element={<AdminReports />} />
+              <Route path="/admin/reports" element={<Navigate to="/reports" replace />} />
               <Route path="/admin/audit" element={<AuditLogsPage />} />
               <Route path="/admin/security" element={<SecuritySettings />} />
               <Route path="/admin/settings" element={<SystemSettings />} />
@@ -105,7 +103,6 @@ export function AppRoutes() {
             <Route element={<RoleBasedRoute allowedRoles={[ROLES.ADMIN, ROLES.CASHIER]} />}>
               <Route path="/pos/checkout" element={<POSCheckoutPage />} />
               <Route path="/pos/product-search" element={<ProductLookupPage />} />
-              <Route path="/pos/receipt" element={<ReceiptScreenPage />} />
               <Route path="/pos/shift-open" element={<ShiftOpenPage />} />
               <Route path="/pos/shift-close" element={<ShiftClosePage />} />
             </Route>

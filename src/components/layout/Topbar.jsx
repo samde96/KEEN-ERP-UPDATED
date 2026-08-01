@@ -1,16 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { roleLabels } from '../../data/roles';
+import { ROLES, roleLabels } from '../../data/roles';
 import { useAuth } from '../../hooks/useAuth';
 import { BranchSwitcher } from './BranchSwitcher';
 import { NotificationDropdown } from './NotificationDropdown';
+
+function userRoleNames(user) {
+  if (Array.isArray(user?.roles) && user.roles.length) {
+    return user.roles;
+  }
+  return user?.role ? [user.role] : [];
+}
+
+function formatUserRoles(user) {
+  return userRoleNames(user).map((role) => roleLabels[role] || role).join(', ') || 'User';
+}
 
 export function Topbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
-  const showNotifications = user?.role !== 'CASHIER';
+  const roles = userRoleNames(user);
+  const showNotifications = !roles.length || roles.some((role) => role !== ROLES.CASHIER);
 
   const handleSignOut = async () => {
     await signOut();
@@ -34,7 +46,7 @@ export function Topbar() {
               <span className="user-avatar">{user?.name?.charAt(0) || 'U'}</span>
               <span className="user-meta">
                 <strong>{user?.name}</strong>
-                <small>{roleLabels[user?.role]}</small>
+                <small>{formatUserRoles(user)}</small>
               </span>
               <i className="bi bi-chevron-down" aria-hidden="true" />
             </button>
@@ -71,7 +83,7 @@ export function Topbar() {
             <dt>Email</dt>
             <dd>{user?.email}</dd>
             <dt>Role</dt>
-            <dd>{roleLabels[user?.role] || user?.role}</dd>
+            <dd>{formatUserRoles(user)}</dd>
           </dl>
         }
         confirmLabel="Close"
@@ -82,7 +94,7 @@ export function Topbar() {
       <ConfirmModal
         open={modal === 'session'}
         title="Session"
-        body="You are signed in with Basic authentication for local development. Sign out clears the saved session from this browser."
+        body="You are signed in on this browser. Sign out removes your saved login from this device."
         confirmLabel="Close"
         cancelLabel={null}
         onConfirm={() => setModal(null)}

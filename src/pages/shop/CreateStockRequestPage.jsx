@@ -12,11 +12,23 @@ export function CreateStockRequestPage() {
   const handleSubmit = async (values) => {
     setSubmitted('');
     setError('');
+    const lines = (values.lines || [])
+      .filter((line) => line.productId)
+      .map((line) => ({
+        productId: line.productId,
+        quantity: Number(line.quantity || 0)
+      }))
+      .filter((line) => line.quantity > 0);
+
+    if (!lines.length) {
+      setError('Add at least one requested product.');
+      return;
+    }
+
     try {
       const response = await transferService.createRequest({
         shopId: values.shopId,
-        productId: values.productId,
-        quantity: Number(values.quantity),
+        lines,
         requestedBy: user?.name || 'Shop Manager',
         priority: values.priority
       });
@@ -25,7 +37,7 @@ export function CreateStockRequestPage() {
         return;
       }
 
-      setSubmitted(`Request ${response.requestNumber} submitted.`);
+      setSubmitted(`Request ${response.requestNumber} submitted with ${lines.length} product${lines.length === 1 ? '' : 's'}.`);
     } catch (requestError) {
       setError(requestError.response?.data?.detail || requestError.message || 'Unable to submit request.');
     }

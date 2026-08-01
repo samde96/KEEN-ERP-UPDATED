@@ -13,6 +13,7 @@ const statusClassMap = {
   'Discrepancy Reported': 'status-black',
   'Discrepancy Resolved': 'status-blue',
   'Low Stock': 'status-outline',
+  'Out Of Stock': 'status-black',
   High: 'status-outline',
   Normal: 'status-muted',
   'Pending Review': 'status-outline',

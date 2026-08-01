@@ -72,6 +72,48 @@
   min-width: 0;
 }
 
+.pos-customer-panel > div:first-child {
+  grid-column: 1 / -1;
+}
+
+.reward-card-status {
+  display: grid;
+  align-content: center;
+  gap: 0.25rem;
+}
+
+.reward-card-status .form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.reward-card-status strong,
+.reward-card-status small,
+.reward-card-status span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.reward-card-status strong {
+  color: var(--app-blue);
+}
+
+.reward-card-status small {
+  color: var(--app-muted);
+  font-size: 0.78rem;
+}
+
+.pos-customer-panel .input-group {
+  flex-wrap: wrap;
+}
+
+.pos-customer-panel .input-group .form-control {
+  min-width: 180px;
+}
+
 .product-button-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -274,6 +316,74 @@
   font-size: 1.3rem;
 }
 
+.mpesa-checkout-panel {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #d8efe2;
+  border-radius: 8px;
+  background: #f3fbf6;
+}
+
+.split-payment-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #dde5f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.split-payment-panel > * {
+  min-width: 0;
+}
+
+.split-balance {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.split-balance-ok {
+  color: #0b6b38;
+}
+
+.split-balance-warning {
+  color: #b42318;
+}
+
+.mpesa-checkout-panel .input-group {
+  flex-wrap: wrap;
+}
+
+.mpesa-checkout-panel .form-control {
+  min-width: 170px;
+}
+
+.mpesa-status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.mpesa-status-pending {
+  color: #7a5c00;
+}
+
+.mpesa-status-success {
+  color: #0b6b38;
+}
+
+.mpesa-status-failed {
+  color: #b42318;
+}
+
 .barcode-input .input-group {
   min-height: 52px;
 }
@@ -291,8 +401,13 @@
 @media (max-width: 575.98px) {
   .cashier-shift-panel,
   .pos-customer-panel,
-  .product-button-grid {
+  .product-button-grid,
+  .split-payment-panel {
     grid-template-columns: 1fr;
+  }
+
+  .pos-customer-panel .input-group .btn {
+    flex: 1 1 auto;
   }
 
   .pos-cart-row {

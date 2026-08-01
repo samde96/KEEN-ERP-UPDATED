@@ -146,7 +146,7 @@ export function IncomingTransfersPage() {
           { key: 'source', label: 'Source' },
           { key: 'destination', label: 'Destination' },
           { key: 'totalUnits', label: 'Units' },
-          { key: 'value', label: 'Value', render: (row) => formatCurrency(row.value) },
+          { key: 'value', label: 'Invoice value', render: (row) => formatCurrency(row.totalRevenue || row.value) },
           { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
           { key: 'sentAt', label: 'Sent', render: (row) => formatDate(row.sentAt) },
           {

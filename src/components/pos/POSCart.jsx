@@ -14,13 +14,14 @@ export function POSCart({ cart, onIncrement, onDecrement, onRemove }) {
               <div>
                 <strong>{item.name}</strong>
                 <span>{formatCurrency(item.price)}</span>
+                {Number.isFinite(Number(item.available)) ? <span>Available: {item.available}</span> : null}
               </div>
               <div className="quantity-stepper">
                 <button className="btn btn-icon" type="button" onClick={() => onDecrement(item.id)} aria-label={`Decrease ${item.name}`}>
                   <i className="bi bi-dash" aria-hidden="true" />
                 </button>
                 <span>{item.quantity}</span>
-                <button className="btn btn-icon" type="button" onClick={() => onIncrement(item.id)} aria-label={`Increase ${item.name}`}>
+                <button className="btn btn-icon" type="button" onClick={() => onIncrement(item.id)} disabled={Number.isFinite(Number(item.available)) && item.quantity >= Number(item.available)} aria-label={`Increase ${item.name}`}>
                   <i className="bi bi-plus" aria-hidden="true" />
                 </button>
               </div>

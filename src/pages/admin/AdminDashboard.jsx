@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PageHeader } from '../../components/common/PageHeader';
 import { StatCard } from '../../components/common/StatCard';
@@ -12,11 +13,17 @@ import { transferService } from '../../services/transferService';
 import { exportCsv } from '../../utils/exportCsv';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDate } from '../../utils/formatDate';
+import { stockRequestLineSummary } from '../../utils/stockRequestUtils';
 
 export function AdminDashboard() {
   const [analytics, setAnalytics] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
-  const { data: stockRequests } = useAsyncData(transferService.requests);
+  const { data: stockRequests, error: stockRequestsError, reload: reloadStockRequests } = useAsyncData(
+    transferService.requests,
+    [],
+    [],
+    { pollIntervalMs: 10000 }
+  );
   const { data: stockTransfers } = useAsyncData(transferService.transfers);
   const { data: auditLogs } = useAsyncData(auditService.logs);
   const { data: theftIncidents } = useAsyncData(securityService.theftIncidents);
@@ -121,18 +128,30 @@ export function AdminDashboard() {
               <span className="panel-kicker">Approval queue</span>
               <h2>Stock requests</h2>
             </div>
-            <i className="bi bi-clipboard-check panel-icon" aria-hidden="true" />
+            <div className="d-flex align-items-center gap-2">
+              <button className="btn btn-sm btn-outline-primary" type="button" onClick={reloadStockRequests}>
+                <i className="bi bi-arrow-clockwise" aria-hidden="true" /> Refresh
+              </button>
+              <Link className="btn btn-sm btn-primary" to="/admin/stock-requests">
+                Open
+              </Link>
+            </div>
           </div>
+          {stockRequestsError ? <div className="alert alert-warning py-2">{stockRequestsError}</div> : null}
           <div className="stack-list">
-            {stockRequests.map((request) => (
-              <article className="stack-row" key={request.id}>
-                <span>
-                  <strong>{request.requestNumber}</strong>
-                  <small>{request.shop}</small>
-                </span>
-                <StatusBadge status={request.status} />
-              </article>
-            ))}
+            {stockRequests.length ? (
+              stockRequests.map((request) => (
+                <article className="stack-row" key={request.id}>
+                  <span>
+                    <strong>{request.requestNumber}</strong>
+                    <small>{request.shop} - {stockRequestLineSummary(request)}</small>
+                  </span>
+                  <StatusBadge status={request.status} />
+                </article>
+              ))
+            ) : (
+              <div className="text-body-secondary small">No stock requests found.</div>
+            )}
           </div>
         </div>
       </section>

@@ -7,7 +7,7 @@ import { BrandLogo } from '../common/BrandLogo';
 
 function SidebarContent() {
   const { user } = useAuth();
-  const sections = getNavigationForRole(user?.role);
+  const sections = getNavigationForRole(user?.roles || user?.role);
 
   return (
     <>

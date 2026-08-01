@@ -19,6 +19,11 @@ export function OfflineStatus() {
 
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
+    const handleConnectivityChanged = (event) => {
+      if (typeof event.detail?.online === 'boolean') {
+        setOnline(event.detail.online);
+      }
+    };
     const handleQueueChanged = (event) => {
       if (typeof event.detail?.pending === 'number') {
         setPending(event.detail.pending);
@@ -38,6 +43,7 @@ export function OfflineStatus() {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener(offlineEvents.connectivityChanged, handleConnectivityChanged);
     window.addEventListener(offlineEvents.queueChanged, handleQueueChanged);
     window.addEventListener(offlineEvents.syncStarted, handleSyncStarted);
     window.addEventListener(offlineEvents.syncFinished, handleSyncFinished);
@@ -45,6 +51,7 @@ export function OfflineStatus() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener(offlineEvents.connectivityChanged, handleConnectivityChanged);
       window.removeEventListener(offlineEvents.queueChanged, handleQueueChanged);
       window.removeEventListener(offlineEvents.syncStarted, handleSyncStarted);
       window.removeEventListener(offlineEvents.syncFinished, handleSyncFinished);

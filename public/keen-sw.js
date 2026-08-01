@@ -1,4 +1,4 @@
-const CACHE_NAME = 'keen-shell-v3';
+const CACHE_NAME = 'keen-shell-v4';
 const SHELL_URLS = ['/', '/index.html', '/manifest.webmanifest', '/Keen_Logo.png'];
 
 async function shellFallback() {
@@ -28,7 +28,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = new URL(request.url);
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) {
+  if (shouldBypassCache(url)) {
     return;
   }
 
@@ -63,3 +63,14 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+function shouldBypassCache(url) {
+  return [
+    '/api/',
+    '/uploads/',
+    '/@vite/',
+    '/@react-refresh',
+    '/src/',
+    '/node_modules/'
+  ].some((path) => url.pathname === path || url.pathname.startsWith(path));
+}

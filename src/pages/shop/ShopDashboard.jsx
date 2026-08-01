@@ -9,18 +9,27 @@ import { inventoryService } from '../../services/inventoryService';
 import { salesService } from '../../services/salesService';
 import { transferService } from '../../services/transferService';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { balanceMatchesLocation, isLikelyShopBalance, isShopLocation } from '../../utils/locationTypes';
 
 export function ShopDashboard() {
-  const { currentLocation } = useBranch();
+  const { currentLocation, locations } = useBranch();
   const { data: stockBalances } = useAsyncData(inventoryService.balances);
-  const { data: stockRequests } = useAsyncData(transferService.requests);
+  const { data: stockRequests } = useAsyncData(transferService.requests, [], [], { pollIntervalMs: 10000 });
   const { data: stockTransfers } = useAsyncData(transferService.transfers);
   const { data: cashierActivity } = useAsyncData(salesService.cashierActivity);
-  const shopStock = currentLocation?.name ? stockBalances.filter((row) => row.location === currentLocation.name) : stockBalances.filter((row) => row.location.includes('Shop'));
+  const shopLocations = locations.filter(isShopLocation);
+  const selectedShop = currentLocation && isShopLocation(currentLocation) ? currentLocation : null;
+  const visibleShopLocations = selectedShop ? [selectedShop] : shopLocations;
+  const shopStock = visibleShopLocations.length
+    ? stockBalances.filter((row) => visibleShopLocations.some((location) => balanceMatchesLocation(row, location)))
+    : stockBalances.filter(isLikelyShopBalance);
   const lowStock = shopStock.filter((row) => ['LOW_STOCK', 'Low Stock'].includes(row.status));
-  const incoming = stockTransfers.filter((transfer) => ['IN_TRANSIT', 'In Transit'].includes(transfer.status) && (!currentLocation?.name || transfer.destination === currentLocation.name));
-  const locationRequests = stockRequests.filter((request) => !currentLocation?.name || request.shop === currentLocation.name);
-  const locationCashierActivity = cashierActivity.filter((shift) => !currentLocation?.name || shift.location === currentLocation.name);
+  const shopNames = visibleShopLocations.map((location) => location.name);
+  const incoming = stockTransfers.filter(
+    (transfer) => ['IN_TRANSIT', 'In Transit'].includes(transfer.status) && (!shopNames.length || shopNames.includes(transfer.destination))
+  );
+  const locationRequests = stockRequests.filter((request) => !shopNames.length || shopNames.includes(request.shop));
+  const locationCashierActivity = cashierActivity.filter((shift) => !shopNames.length || shopNames.includes(shift.location));
   const cashExpected = locationCashierActivity.reduce((sum, shift) => sum + Number(shift.cashExpected || 0), 0);
 
   return (
